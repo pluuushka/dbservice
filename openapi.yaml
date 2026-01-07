@@ -1,0 +1,929 @@
+openapi: 3.0.3
+info:
+  title: BotVPN DB Service API
+  description: API для управления пользователями, серверами, подписками и системой лояльности VPN бота.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+paths:
+  # --- Health Check ---
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Проверка работоспособности сервиса
+      responses:
+        '200':
+          description: Сервис работает нормально
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  db_connection:
+                    type: boolean
+                    example: true
+
+  # --- Configs API ---
+  /configs:
+    get:
+      tags:
+        - Configs
+      summary: Получить список конфигов
+      description: Поиск конфигов по различным фильтрам (user_id, server_id, country, subscription_id).
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: server_id
+          in: query
+          schema:
+            type: integer
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: subscription_id
+          in: query
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Список конфигов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Config'
+    post:
+      tags:
+        - Configs
+      summary: Добавить конфиг
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigCreate'
+      responses:
+        '201':
+          description: Конфиг создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+
+  /configs/{id}:
+    get:
+      tags:
+        - Configs
+      summary: Получить конфиг по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Данные конфига
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+    patch:
+      tags:
+        - Configs
+      summary: Изменить конфиг
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigUpdate'
+      responses:
+        '200':
+          description: Конфиг обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+    delete:
+      tags:
+        - Configs
+      summary: Удалить конфиг
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Конфиг удален
+
+  # --- Users API ---
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Получить список пользователей
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [active_points, total_points]
+        - name: has_subscription
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - Users
+      summary: Добавить пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/count:
+    get:
+      tags:
+        - Users
+      summary: Получить количество пользователей
+      responses:
+        '200':
+          description: Количество пользователей
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /users/{user_id}:
+    get:
+      tags:
+        - Users
+      summary: Получить пользователя
+      description: Поиск по telegram_id (user_id). Также можно искать по username через query параметры в списке, но здесь основной endpoint.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags:
+        - Users
+      summary: Изменить пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Пользователь обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags:
+        - Users
+      summary: Удалить пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Пользователь удален
+
+  # --- Carma API ---
+  /users/{user_id}/carma:
+    get:
+      tags:
+        - Carma
+      summary: Получить информацию о карме пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Информация о карме
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Carma'
+
+  /carma-events:
+    post:
+      tags:
+        - Carma
+      summary: Добавить событие кармы (начислить/списать)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarmaEventCreate'
+      responses:
+        '201':
+          description: Событие создано, баланс обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarmaEvent'
+    delete:
+      tags:
+        - Carma
+      summary: Очистка истории событий
+      parameters:
+        - name: older_than_days
+          in: query
+          schema:
+            type: integer
+        - name: keep_last_n
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: История очищена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /carma-events/{id}:
+    delete:
+      tags:
+        - Carma
+      summary: Удалить конкретное событие
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Событие удалено
+
+  # --- Servers API ---
+  /servers:
+    get:
+      tags:
+        - Servers
+      summary: Получить список серверов
+      responses:
+        '200':
+          description: Список серверов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+    post:
+      tags:
+        - Servers
+      summary: Добавить сервер
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerCreate'
+      responses:
+        '201':
+          description: Сервер добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+
+  /servers/best:
+    get:
+      tags:
+        - Servers
+      summary: Найти лучший сервер
+      description: Сервер с наименьшей нагрузкой, опционально по стране.
+      parameters:
+        - name: country
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Лучший сервер
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+
+  /servers/{id}:
+    patch:
+      tags:
+        - Servers
+      summary: Изменить данные сервера
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerUpdate'
+      responses:
+        '200':
+          description: Сервер обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+    delete:
+      tags:
+        - Servers
+      summary: Удалить сервер
+      description: Автоматически удаляет все связанные конфиги.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Сервер удален
+
+  /servers/{id}/stop:
+    post:
+      tags:
+        - Servers
+      summary: Остановить сервер
+      description: Автоматически меняет сервер у всех конфигов.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Сервер остановлен
+
+  /servers/{id}/start:
+    post:
+      tags:
+        - Servers
+      summary: Запустить сервер
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Сервер запущен
+
+  # --- Subscriptions API ---
+  /subscriptions:
+    get:
+      tags:
+        - Subscriptions
+      summary: Получить подписки
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: expires_in_days
+          in: query
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Список подписок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+    post:
+      tags:
+        - Subscriptions
+      summary: Создать подписку (за баллы)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  format: int64
+                months:
+                  type: integer
+                  default: 1
+      responses:
+        '201':
+          description: Подписка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscriptions/revoke-expired:
+    post:
+      tags:
+        - Subscriptions
+      summary: Отключить истекшие подписки
+      responses:
+        '200':
+          description: Подписки отключены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked_count:
+                    type: integer
+
+  /subscriptions/{id}:
+    get:
+      tags:
+        - Subscriptions
+      summary: Получить подписку по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Подписка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+    delete:
+      tags:
+        - Subscriptions
+      summary: Удалить подписку
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Подписка удалена
+
+  /subscriptions/{id}/extend:
+    post:
+      tags:
+        - Subscriptions
+      summary: Продлить подписку
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days:
+                  type: integer
+                  description: Продлить на N дней (бесплатно/админ)
+                use_points:
+                  type: boolean
+                  description: Продлить за баллы (на месяц)
+      responses:
+        '200':
+          description: Подписка продлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  # --- Applications API ---
+  /applications:
+    get:
+      tags:
+        - Applications
+      summary: Получить заявки
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [new, extend]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, waiting_payment, checking_payment]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Список заявок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+    post:
+      tags:
+        - Applications
+      summary: Создать заявку
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreate'
+      responses:
+        '201':
+          description: Заявка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+
+  /applications/{id}:
+    delete:
+      tags:
+        - Applications
+      summary: Удалить заявку
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Заявка удалена
+
+  /applications/{id}/approve:
+    post:
+      tags:
+        - Applications
+      summary: Одобрить заявку
+      description: Атомарная транзакция (Подписка -> Карма -> Событие).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Заявка одобрена, подписка активирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+
+components:
+  parameters:
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+    OffsetParam:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+
+  schemas:
+    # --- Config ---
+    Config:
+      type: object
+      properties:
+        id:
+          type: integer
+        subscription_id:
+          type: integer
+          nullable: true
+        is_test:
+          type: boolean
+        server_id:
+          type: integer
+        protocol:
+          type: integer
+          description: Битовая маска протокола
+    ConfigCreate:
+      type: object
+      required: [server_id, protocol]
+      properties:
+        subscription_id:
+          type: integer
+        is_test:
+          type: boolean
+          default: false
+        server_id:
+          type: integer
+        protocol:
+          type: integer
+    ConfigUpdate:
+      type: object
+      properties:
+        subscription_id:
+          type: integer
+        server_id:
+          type: integer
+        is_test:
+          type: boolean
+
+    # --- Server ---
+    Server:
+      type: object
+      properties:
+        id:
+          type: integer
+        ip:
+          type: string
+          format: ipv4
+        country:
+          type: string
+        ssh_keys_hash:
+          type: string
+        monthly_cost:
+          type: number
+        hostname:
+          type: string
+        max_configs:
+          type: integer
+        status:
+          type: string
+          enum: [active, disabled, preparing_disable, tech_issues]
+        protocol:
+          type: integer
+          description: Маска поддерживаемых протоколов (001 - amneziawg)
+    ServerCreate:
+      type: object
+      required: [ip, country, ssh_keys_hash, monthly_cost, hostname, max_configs, protocol]
+      properties:
+        ip:
+          type: string
+        country:
+          type: string
+        ssh_keys_hash:
+          type: string
+        monthly_cost:
+          type: number
+        hostname:
+          type: string
+        max_configs:
+          type: integer
+        protocol:
+          type: integer
+    ServerUpdate:
+      type: object
+      properties:
+        monthly_cost:
+          type: number
+        hostname:
+          type: string
+        max_configs:
+          type: integer
+        status:
+          type: string
+        protocol:
+          type: integer
+
+    # --- User ---
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          description: Telegram ID
+        username:
+          type: string
+        invited_by:
+          type: integer
+          format: int64
+          nullable: true
+        can_take_test:
+          type: boolean
+        rank:
+          type: string
+          enum: [new, active]
+    UserCreate:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        invited_by:
+          type: integer
+          format: int64
+    UserUpdate:
+      type: object
+      properties:
+        username:
+          type: string
+        can_take_test:
+          type: boolean
+        rank:
+          type: string
+
+    # --- Carma ---
+    Carma:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        total_points:
+          type: integer
+        active_points:
+          type: integer
+        last_updated:
+          type: string
+          format: date-time
+
+    # --- Carma Event ---
+    CarmaEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          format: int64
+        amount:
+          type: integer
+        is_positive:
+          type: boolean
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    CarmaEventCreate:
+      type: object
+      required: [user_id, amount, is_positive, reason]
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        amount:
+          type: integer
+        is_positive:
+          type: boolean
+        reason:
+          type: string
+
+    # --- Application ---
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          format: int64
+        subscription_id:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+        currency:
+          type: string
+        type:
+          type: string
+          enum: [new, extend]
+        status:
+          type: string
+          enum: [pending, waiting_payment, checking_payment]
+        created_at:
+          type: string
+          format: date-time
+    ApplicationCreate:
+      type: object
+      required: [user_id, amount, currency, type]
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        subscription_id:
+          type: integer
+        amount:
+          type: number
+        currency:
+          type: string
+        type:
+          type: string
+          enum: [new, extend]
+
+    # --- Subscription ---
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          format: int64
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        cost:
+          type: number
