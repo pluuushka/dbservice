@@ -4,18 +4,27 @@
 
 - Язык: **Python 3.12+**
 - Веб‑фреймворк: **FastAPI**
-- База данных: **PostgreSQL 14+**
+- База данных: *### 2.6. Репозитории (`internal/repositories`)
+
+- Инкапсулируют все запросы к БД (слой доступа к данным):
+  - базовые методы `get_by_id`, `list`, `create`, `update`, `delete`.
+  - специфичные запросы (поиск лучшего сервера, выборки с фильтрами и т.п.).
+- **Не содержат бизнес‑логику** — только работа с БД.
+- Работают с SQLAlchemy сессией, полученной через зависимость FastAPI из `internal.api.deps` / `utils.db`.
+- Вызываются из сервисов, а не напрямую из API‑роутов.
+
+### 2.7. Утилиты и инфраструктура (`utils`)SQL 14+**
 - ORM: **SQLAlchemy 2.x** (declarative, sync или async — на выбор при реализации)
 - Миграции: **Alembic**
 - Схемы/валидация: **Pydantic v2**
 - Спецификация API: **OpenAPI 3.0.3** (`DBService/openapi.yaml` — источник правды)
 - Генерация кода: **OpenAPI Generator** (серверные модели и базовые эндпоинты)
 - Развёртывание: **Docker** (один контейнер с приложением и миграциями при старте)
-- Сервис работает только с БД (без сложного бизнес‑service‑слоя поверх репозиториев).
+- Архитектура: **Слоистая** с выделенным service‑слоем для бизнес‑логики и оркестрации.
 
 ## 2. Архитектура и структура проекта
 
-Корневая структура для `DBService` (слоистая, без отдельного service layer, с использованием `internal/`):
+Корневая структура для `DBService` (слоистая архитектура с service‑слоем, использованием `internal/`):
 
 ```text
 DBService/
@@ -34,6 +43,14 @@ DBService/
 │   │   ├── servers.py       # /servers
 │   │   ├── subscriptions.py # /subscriptions
 │   │   └── applications.py  # /applications
+│   ├── services/            # Бизнес‑логика и оркестрация операций
+│   │   ├── __init__.py
+│   │   ├── configs.py       # Логика работы с конфигами
+│   │   ├── users.py         # Логика работы с пользователями
+│   │   ├── carma.py         # Логика работы с кармой (начисления, события)
+│   │   ├── servers.py       # Логика работы с серверами (балансировка, миграция)
+│   │   ├── subscriptions.py # Логика подписок (продление, отзыв)
+│   │   └── applications.py  # Логика заявок (одобрение с транзакциями)
 │   ├── models/              # SQLAlchemy ORM‑модели (таблицы Postgres)
 │   │   ├── __init__.py
 │   │   ├── base.py          # Base = declarative_base(), metadata
@@ -97,9 +114,26 @@ DBService/
   - `servers.py` — `/servers`, `/servers/{id}`, `/servers/best`, `/servers/{id}/start/stop`.
   - `subscriptions.py` — `/subscriptions`, `/subscriptions/{id}`, `/subscriptions/{id}/extend`, `/subscriptions/revoke-expired`.
   - `applications.py` — `/applications`, `/applications/{id}`, `/applications/{id}/approve`.
-- Роуты обращаются **напрямую к репозиториям** (`internal.repositories.*`) и возвращают Pydantic‑схемы из `internal.schemas`.
+- Роуты **НЕ обращаются напрямую к репозиториям**, а вызывают методы из service‑слоя (`internal.services.*`).
+- Возвращают Pydantic‑схемы из `internal.schemas`.
+- Обработка ошибок и валидация входных данных на уровне API.
 
-### 2.3. Модели (`internal/models`)
+### 2.3. Сервисы (`internal/services`)
+
+- **Бизнес‑логика** и оркестрация операций:
+  - Координация работы нескольких репозиториев.
+  - Реализация сложных транзакций (например, одобрение заявки).
+  - Валидация бизнес‑правил (проверка кармы, лимитов и т.п.).
+  - Обработка побочных эффектов (создание событий кармы при операциях).
+- **Примеры методов**:
+  - `ApplicationService.approve_application()` — атомарная транзакция: создание/продление подписки + начисление кармы + создание события.
+  - `SubscriptionService.extend_with_carma()` — проверка баллов кармы, продление подписки, списание баллов.
+  - `ServerService.stop_server()` — остановка сервера + миграция всех конфигов на другие серверы.
+  - `CarmaService.add_event()` — создание события + автоматическое обновление баллов пользователя.
+- Сервисы работают с репозиториями через зависимости (получают сессию БД).
+- Сервисы могут вызывать другие сервисы для композиции логики.
+
+### 2.4. Модели (`internal/models`)
 
 - Для каждой сущности из `API.md` / `openapi.yaml` — отдельная ORM‑модель:
   - `Config`, `Server`, `User`, `Carma`, `CarmaEvent`, `Application`, `Subscription`.
@@ -108,7 +142,7 @@ DBService/
   - типы полей (включая enum‑ы и nullable‑флаги);
   - связи `relationship` (например, `Subscription` ↔ `Config`).
 
-### 2.4. Схемы (`internal/schemas`)
+### 2.5. Схемы (`internal/schemas`)
 
 - Pydantic‑модели для запросов и ответов, максимально близко к OpenAPI:
   - `Config`, `ConfigCreate`, `ConfigUpdate` и т.п.
