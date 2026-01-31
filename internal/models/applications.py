@@ -5,14 +5,14 @@ class Applications(Base):
     __tablename__ = "applications" # name of table in PostgreSQL
 
     # fields
-    id = Column(Integer)
-    user_id = Column(Integer)
-    subscription_id = Column(Integer)
-    amount = Column(Integer)
-    currency = Column(String)
-    type = Column(String)
-    status = Column(String)
-    created_at = Column(DataTime)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, primary_key=True)
+    subscription_id = Column(Integer, primary_key=True)
+    amount = Column(Integer, nullable=False)
+    currency = Column(String(10), nullable=False)
+    type = Column(String(10), nullable=False)
+    status = Column(String(10), nullable=False)
+    created_at = Column(DataTime, nullable=False)
 
     
 

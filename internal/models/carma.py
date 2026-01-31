@@ -8,8 +8,8 @@ class Carma(Base):
 
     # fields
     user_id = Column(Integer, primary_key=True)
-    total_points = Column(Integer)
-    active_points = Column(Integer)
-    last_updated = Column(DataTime)
+    total_points = Column(Integer, nullable=False)
+    active_points = Column(Integer, nullable=False)
+    last_updated = Column(DataTime, nullable=False) # when it created it is last_updated 
 
     

@@ -8,11 +8,11 @@ class Servers(Base):
 
     # fields
     id = Column(Integer, primary_key=True)
-    ip = Column(String)
-    country = Column(String)
-    ssh_key_hash = Column(String)
-    monthly_cost = Column(Integer)
-    hostname = Column(String)
-    max_configs= Column(Integer)
-    status = Column(String)
-    protocol = Column(String) # need to be string to stay formated for data like "001"
+    ip = Column(String, nullable=False)
+    country = Column(String(50), nullable=False)
+    ssh_key_hash = Column(String(50), nullable=False)
+    monthly_cost = Column(Integer, nullable=False)
+    hostname = Column(String(20), nullable=False, unique=True) # hostname must be unique
+    max_configs= Column(Integer, nullable=False)
+    status = Column(String(10), nullable=False)
+    protocol = Column(String(20), nullable=False) # need to be string to stay formated for data like "001"

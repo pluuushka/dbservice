@@ -7,7 +7,7 @@ class User(Base):
     
     # fields
     user_id = Column(BigInteger, primary_key=True)
-    username = Column(String)
+    username = Column(String(20), nullable=False, unique=True)
     invited_by = Column(BigInteger)
-    can_take_test = Column(Boolean)
-    rank = Column(String)
+    can_take_test = Column(Boolean, nullable=False)
+    rank = Column(String(10), nullable=False)

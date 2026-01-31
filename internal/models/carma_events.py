@@ -5,9 +5,9 @@ class Carma_Events(Base):
     __tablename__ = "Carma Events" # name of table in PostgreSQL
 
     # fields
-    id = Column(Integer)
-    user_id = Column(Integer)
-    amount = Column(Integer)
-    is_positive = Column(Boolean)
-    reason = Column(String)
-    created_at = Column(DataTime)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    amount = Column(Integer, nullable=False)
+    is_positive = Column(Boolean, nullable=False)
+    reason = Column(String(50))
+    created_at = Column(DataTime, nullable=False)

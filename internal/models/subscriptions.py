@@ -5,10 +5,10 @@ class Subscriptions(Base):
     __tablename__ = "subscriptions" # name of table in PostgreSQL
 
     # fields
-    id = Column(Integer)
-    user_id = Column(Integer)
-    config_id = Column(Integer)
-    start_date = Column(DataTime)
-    end_date = Column(DataTime)
-    cost = Column(Integer)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, primary_key=True)
+    start_date = Column(DataTime, nullable=False)
+    end_date = Column(DataTime, nullable=False)
+    cost = Column(Integer, nullable=True) # only for timurchik can be nullable
 

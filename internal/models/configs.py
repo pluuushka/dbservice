@@ -1,5 +1,5 @@
 # models/configs.py
-from sqlalchemy import Column, Integer, Boolean
+from sqlalchemy import Column, Integer, Boolean, String
 from .base import Base 
 
 class User(Base):
@@ -7,6 +7,7 @@ class User(Base):
     
     # fields
     id = Column(Integer, primary_key=True)
-    id_test = Column(Boolean)
-    server_id = Column(Integer)
-    protocol = Column(String) # need string to be stay formated
+    subscription_id = Column(Integer, primary_key=True) #  user can be identify by subscription_id
+    is_test = Column(Boolean, nullable=False)
+    server_id = Column(Integer, unique=True, nullable=False)
+    protocol = Column(String(20)) # need string to be stay formated
